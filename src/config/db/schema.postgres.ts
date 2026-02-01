@@ -1,11 +1,14 @@
 import {
   boolean,
+  decimal,
   index,
   integer,
   pgSchema,
   pgTable,
+  serial,
   text,
   timestamp,
+  varchar,
 } from 'drizzle-orm/pg-core';
 
 import { envConfigs } from '@/config';
@@ -553,5 +556,163 @@ export const chatMessage = table(
   (table) => [
     index('idx_chat_message_chat_id').on(table.chatId, table.status),
     index('idx_chat_message_user_id').on(table.userId, table.status),
+  ]
+);
+
+// ============================================
+// AI Keyword Mining System Tables
+// ============================================
+
+// Table 1: mining_servers - 服务器信息
+export const miningServers = table(
+  'mining_servers',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    region: varchar('region', { length: 100 }),
+    apiKeyHash: varchar('api_key_hash', { length: 255 }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_mining_servers_name').on(table.name),
+  ]
+);
+
+// Table 2: mining_runs - 挖掘任务
+export const miningRuns = table(
+  'mining_runs',
+  {
+    id: serial('id').primaryKey(),
+    minerId: integer('miner_id')
+      .references(() => miningServers.id, { onDelete: 'cascade' })
+      .notNull(),
+    seed: varchar('seed', { length: 255 }),
+    rounds: integer('rounds'),
+    status: varchar('status', { length: 50 }).notNull(), // 'running', 'success', 'failed'
+    startedAt: timestamp('started_at'),
+    endedAt: timestamp('ended_at'),
+    metaJson: text('meta_json'), // JSONB stored as text
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_runs_miner_id').on(table.minerId),
+    index('idx_runs_status').on(table.status),
+    index('idx_runs_started_at').on(table.startedAt),
+  ]
+);
+
+// Table 3: keywords - 关键词主表
+export const keywords = table(
+  'keywords',
+  {
+    id: serial('id').primaryKey(),
+    keyword: varchar('keyword', { length: 255 }).notNull(),
+    keywordNorm: varchar('keyword_norm', { length: 255 }).notNull().unique(),
+    language: varchar('language', { length: 20 }),
+    country: varchar('country', { length: 100 }),
+    category: varchar('category', { length: 100 }),
+    firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
+    lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_keywords_norm').on(table.keywordNorm),
+    index('idx_keywords_category').on(table.category),
+    index('idx_keywords_language').on(table.language),
+    index('idx_keywords_last_seen').on(table.lastSeenAt),
+  ]
+);
+
+// Table 4: keyword_observations - 关键词观察数据
+export const keywordObservations = table(
+  'keyword_observations',
+  {
+    id: serial('id').primaryKey(),
+    keywordId: integer('keyword_id')
+      .references(() => keywords.id, { onDelete: 'cascade' })
+      .notNull(),
+    runId: integer('run_id')
+      .references(() => miningRuns.id, { onDelete: 'cascade' })
+      .notNull(),
+    source: varchar('source', { length: 100 }),
+    score: decimal('score', { precision: 5, scale: 2 }),
+    searchVolume: integer('search_volume'),
+    difficulty: varchar('difficulty', { length: 20 }),
+    intent: varchar('intent', { length: 255 }),
+    wordCount: integer('word_count'),
+    painPointFlag: boolean('pain_point_flag').default(false),
+    rawJson: text('raw_json'), // JSONB stored as text
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_observations_keyword_id').on(table.keywordId),
+    index('idx_observations_run_id').on(table.runId),
+    index('idx_observations_score').on(table.score),
+    index('idx_observations_difficulty').on(table.difficulty),
+    index('idx_keyword_observations').on(table.keywordId, table.runId),
+  ]
+);
+
+// Table 5: keyword_reports - 分析报告
+export const keywordReports = table(
+  'keyword_reports',
+  {
+    id: serial('id').primaryKey(),
+    runId: integer('run_id')
+      .references(() => miningRuns.id, { onDelete: 'cascade' })
+      .notNull(),
+    title: varchar('title', { length: 255 }),
+    reportMarkdown: text('report_markdown'),
+    reportJson: text('report_json'), // JSONB stored as text
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_keyword_reports_run_id').on(table.runId),
+    index('idx_reports_created_at').on(table.createdAt),
+  ]
+);
+
+// Table 6: keyword_notes - 关键词备注
+export const keywordNotes = table(
+  'keyword_notes',
+  {
+    id: serial('id').primaryKey(),
+    keywordId: integer('keyword_id')
+      .references(() => keywords.id, { onDelete: 'cascade' })
+      .notNull(),
+    runId: integer('run_id').references(() => miningRuns.id, {
+      onDelete: 'cascade',
+    }),
+    type: varchar('type', { length: 50 }).notNull(), // 'ai_summary', 'dev_suggestion', 'business_value', 'risk'
+    content: text('content'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_keyword_notes_keyword_id').on(table.keywordId),
+    index('idx_notes_type').on(table.type),
   ]
 );
