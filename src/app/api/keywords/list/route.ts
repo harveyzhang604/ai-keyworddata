@@ -20,16 +20,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
-import { sql } from 'drizzle-orm';
 
-function getDb() {
+function getSqlClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error('DATABASE_URL 环境变量未设置');
   }
-  const client = neon(connectionString);
-  return drizzle(client);
+  return neon(connectionString);
 }
 
 export async function GET(request: NextRequest) {
@@ -48,131 +45,202 @@ export async function GET(request: NextRequest) {
     const maxScore = searchParams.get('maxScore')
       ? parseFloat(searchParams.get('maxScore')!)
       : null;
-    const difficulty = searchParams.get('difficulty')?.split(',') || [];
-    const intent = searchParams.get('intent')?.split(',') || [];
+    const difficulty = searchParams.get('difficulty')?.split(',').filter(d => d) || [];
+    const intent = searchParams.get('intent')?.split(',').filter(i => i) || [];
     const wordCount = searchParams.get('wordCount') || '';
     const dateRange = searchParams.get('dateRange') || 'all';
-    const source = searchParams.get('source')?.split(',') || [];
+    const source = searchParams.get('source')?.split(',').filter(s => s) || [];
     const greenLight = searchParams.get('greenLight') === 'true';
     const sortBy = searchParams.get('sortBy') || 'score';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    const db = getDb();
+    const sql = getSqlClient();
 
-    const sqlClient = neon(process.env.DATABASE_URL!);
-
-    // 构建查询条件
-    const conditions: string[] = ['1=1'];
-    const params: any[] = [];
-
-    // 搜索关键词
+    // 构建静态条件部分（不使用参数占位符）
+    let whereConditions = '1=1';
+    
+    // 搜索关键词（使用安全的LIKE）
     if (search) {
-      conditions.push(`kl.keyword ILIKE $${params.length + 1}`);
-      params.push(`%${search}%`);
+      const safeSearch = search.replace(/[%_\\]/g, '\\$&');
+      whereConditions += ` AND k.keyword ILIKE '%${safeSearch}%'`;
     }
 
     // 得分范围
     if (minScore !== null) {
-      conditions.push(`kl.score >= $${params.length + 1}`);
-      params.push(minScore);
+      whereConditions += ` AND ko.score >= ${minScore}`;
     }
     if (maxScore !== null) {
-      conditions.push(`kl.score <= $${params.length + 1}`);
-      params.push(maxScore);
+      whereConditions += ` AND ko.score <= ${maxScore}`;
     }
 
     // 难度筛选
     if (difficulty.length > 0) {
-      conditions.push(`kl.difficulty = ANY($${params.length + 1}::text[])`);
-      params.push(difficulty);
+      const diffStr = difficulty.map(d => `'${d}'`).join(',');
+      whereConditions += ` AND ko.difficulty IN (${diffStr})`;
     }
 
     // 意图筛选
     if (intent.length > 0) {
-      conditions.push(`kl.intent = ANY($${params.length + 1}::text[])`);
-      params.push(intent);
+      const intentStr = intent.map(i => `'${i}'`).join(',');
+      whereConditions += ` AND ko.intent IN (${intentStr})`;
     }
 
     // 词长筛选
     if (wordCount === '1-2') {
-      conditions.push('kl.word_count BETWEEN 1 AND 2');
+      whereConditions += ' AND ko.word_count BETWEEN 1 AND 2';
     } else if (wordCount === '3-4') {
-      conditions.push('kl.word_count BETWEEN 3 AND 4');
+      whereConditions += ' AND ko.word_count BETWEEN 3 AND 4';
     } else if (wordCount === '5+') {
-      conditions.push('kl.word_count >= 5');
+      whereConditions += ' AND ko.word_count >= 5';
     }
 
     // 时间范围筛选
     if (dateRange !== 'all') {
       const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
-      conditions.push(`kl.observed_at >= NOW() - INTERVAL '${days} days'`);
+      whereConditions += ` AND ko.created_at >= NOW() - INTERVAL '${days} days'`;
     }
 
     // 数据来源筛选
     if (source.length > 0) {
-      conditions.push(`kl.source = ANY($${params.length + 1}::text[])`);
-      params.push(source);
+      const sourceStr = source.map(s => `'${s}'`).join(',');
+      whereConditions += ` AND ko.source IN (${sourceStr})`;
     }
 
     // 绿灯词筛选
     if (greenLight) {
-      conditions.push("kl.score >= 80 AND kl.difficulty = 'low'");
+      whereConditions += " AND ko.score >= 80 AND ko.difficulty = 'low'";
     }
 
     // 排序字段映射
     const sortFieldMap: { [key: string]: string } = {
-      score: 'kl.score',
-      search_volume: 'kl.search_volume',
-      observed_at: 'kl.observed_at',
+      score: 'ko.score',
+      search_volume: 'ko.search_volume',
+      observed_at: 'ko.created_at',
     };
-    const sortField = sortFieldMap[sortBy] || 'kl.score';
+    const sortField = sortFieldMap[sortBy] || 'ko.score';
     const sortDir = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
-    // 查询总数
-    const countQuery = `
+    // 查询总数 - 使用模板字符串进行安全查询
+    const countResult = await sql`
+      WITH latest_observations AS (
+        SELECT DISTINCT ON (keyword_id)
+          keyword_id,
+          score,
+          search_volume,
+          difficulty,
+          intent,
+          word_count,
+          pain_point_flag,
+          source,
+          created_at
+        FROM keyword_observations
+        ORDER BY keyword_id, created_at DESC
+      )
       SELECT COUNT(*) as total
-      FROM keyword_latest kl
-      WHERE ${conditions.join(' AND ')}
+      FROM keywords k
+      LEFT JOIN latest_observations ko ON k.id = ko.keyword_id
     `;
 
-    const countResult = await (sqlClient as any)(countQuery, params);
-    const countRows = Array.isArray(countResult)
-      ? countResult
-      : (countResult as any).rows || [];
-    const total = parseInt(countRows[0]?.total || '0');
+    // 因为 neon 模板字符串不支持动态 WHERE 条件，我们使用简化查询
+    // 获取所有数据然后在代码中过滤
+    const total = parseInt(countResult[0]?.total || '0');
 
     // 查询数据
-    const dataQuery = `
+    const allDataResult = await sql`
+      WITH latest_observations AS (
+        SELECT DISTINCT ON (keyword_id)
+          keyword_id,
+          score,
+          search_volume,
+          difficulty,
+          intent,
+          word_count,
+          pain_point_flag,
+          source,
+          created_at
+        FROM keyword_observations
+        ORDER BY keyword_id, created_at DESC
+      )
       SELECT 
-        kl.id,
-        kl.keyword,
-        kl.score,
-        kl.search_volume,
-        kl.difficulty,
-        kl.intent,
-        kl.word_count,
-        kl.pain_point_flag,
-        kl.source,
-        kl.language,
-        kl.country,
-        kl.category,
-        kl.observed_at
-      FROM keyword_latest kl
-      WHERE ${conditions.join(' AND ')}
-      ORDER BY ${sortField} ${sortDir} NULLS LAST, kl.id DESC
-      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        k.id,
+        k.keyword,
+        k.language,
+        k.country,
+        k.category,
+        ko.score,
+        ko.search_volume,
+        ko.difficulty,
+        ko.intent,
+        ko.word_count,
+        ko.pain_point_flag,
+        ko.source,
+        ko.created_at as observed_at
+      FROM keywords k
+      LEFT JOIN latest_observations ko ON k.id = ko.keyword_id
+      ORDER BY ko.score DESC NULLS LAST, k.id DESC
     `;
 
-    params.push(limit, offset);
+    // 在代码中进行过滤
+    let filteredData = allDataResult.filter((row: any) => {
+      // 搜索过滤
+      if (search && !row.keyword?.toLowerCase().includes(search.toLowerCase())) {
+        return false;
+      }
+      // 得分过滤
+      if (minScore !== null && (row.score === null || parseFloat(row.score) < minScore)) {
+        return false;
+      }
+      if (maxScore !== null && (row.score === null || parseFloat(row.score) > maxScore)) {
+        return false;
+      }
+      // 难度过滤
+      if (difficulty.length > 0 && !difficulty.includes(row.difficulty)) {
+        return false;
+      }
+      // 意图过滤
+      if (intent.length > 0 && !intent.includes(row.intent)) {
+        return false;
+      }
+      // 词长过滤
+      const wc = parseInt(row.word_count) || 0;
+      if (wordCount === '1-2' && (wc < 1 || wc > 2)) return false;
+      if (wordCount === '3-4' && (wc < 3 || wc > 4)) return false;
+      if (wordCount === '5+' && wc < 5) return false;
+      // 数据来源过滤
+      if (source.length > 0 && !source.includes(row.source)) {
+        return false;
+      }
+      // 绿灯词过滤
+      if (greenLight && !(parseFloat(row.score) >= 80 && row.difficulty === 'low')) {
+        return false;
+      }
+      return true;
+    });
 
-    const dataResult = await (sqlClient as any)(dataQuery, params);
-    const dataRows = Array.isArray(dataResult)
-      ? dataResult
-      : (dataResult as any).rows || [];
+    // 排序
+    filteredData.sort((a: any, b: any) => {
+      let aVal = a[sortBy === 'observed_at' ? 'observed_at' : sortBy] || 0;
+      let bVal = b[sortBy === 'observed_at' ? 'observed_at' : sortBy] || 0;
+      
+      if (sortBy === 'score' || sortBy === 'search_volume') {
+        aVal = parseFloat(aVal) || 0;
+        bVal = parseFloat(bVal) || 0;
+      }
+      
+      if (sortDir === 'ASC') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
 
+    const filteredTotal = filteredData.length;
+
+    // 分页
+    const pagedData = filteredData.slice(offset, offset + limit);
 
     // 格式化数据
-    const keywords = dataRows.map((row: any) => ({
+    const keywords = pagedData.map((row: any) => ({
       id: row.id,
       keyword: row.keyword,
       score: parseFloat(row.score) || 0,
@@ -198,8 +266,8 @@ export async function GET(request: NextRequest) {
         pagination: {
           page,
           limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+          total: filteredTotal,
+          totalPages: Math.ceil(filteredTotal / limit),
         },
       },
     });

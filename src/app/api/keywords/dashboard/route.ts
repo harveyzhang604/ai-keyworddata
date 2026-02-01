@@ -5,69 +5,72 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
-import { sql } from 'drizzle-orm';
 
-function getDb() {
+function getSqlClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error('DATABASE_URL 环境变量未设置');
   }
-  const client = neon(connectionString);
-  return drizzle(client);
+  return neon(connectionString);
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const db = getDb();
+    const sqlClient = getSqlClient();
 
     // 1. 获取基本统计数据
-    const statsQuery: any = await db.execute(sql`
+    const statsResult = await sqlClient`
       SELECT 
-        COUNT(DISTINCT k.id) as total_keywords,
-        COUNT(DISTINCT CASE WHEN k.last_seen_at >= NOW() - INTERVAL '7 days' THEN k.id END) as new_this_week,
-        COUNT(DISTINCT CASE 
-          WHEN kl.score >= 80 AND kl.difficulty = 'low' 
-          THEN k.id 
-        END) as green_light_keywords,
-        COUNT(DISTINCT CASE WHEN mr.status = 'running' THEN mr.id END) as running_tasks
-      FROM keywords k
-      LEFT JOIN keyword_latest kl ON k.id = kl.id
-      LEFT JOIN mining_runs mr ON mr.status = 'running'
-    `);
+        (SELECT COUNT(*) FROM keywords) as total_keywords,
+        (SELECT COUNT(*) FROM keywords WHERE last_seen_at >= NOW() - INTERVAL '7 days') as new_this_week,
+        (SELECT COUNT(DISTINCT ko.keyword_id) 
+         FROM keyword_observations ko 
+         WHERE ko.score >= 80 AND ko.difficulty = 'low'
+        ) as green_light_keywords,
+        (SELECT COUNT(*) FROM mining_runs WHERE status = 'running') as running_tasks
+    `;
 
-    const statsRows = Array.isArray(statsQuery) ? statsQuery : (statsQuery.rows || []);
-    const stats = statsRows[0] || {
+    const stats = statsResult[0] || {
       total_keywords: 0,
       new_this_week: 0,
       green_light_keywords: 0,
       running_tasks: 0,
     };
 
-    // 2. 获取 TOP 10 关键词（按得分排序）
-    const topKeywordsQuery: any = await db.execute(sql`
+    // 2. 获取 TOP 10 关键词（按最新得分排序）
+    const topKeywordsResult = await sqlClient`
+      WITH latest_observations AS (
+        SELECT DISTINCT ON (keyword_id)
+          keyword_id,
+          score,
+          search_volume,
+          difficulty,
+          intent,
+          word_count,
+          pain_point_flag,
+          created_at
+        FROM keyword_observations
+        ORDER BY keyword_id, created_at DESC
+      )
       SELECT 
-        kl.id,
-        kl.keyword,
-        kl.score,
-        kl.search_volume,
-        kl.difficulty,
-        kl.intent,
-        kl.word_count,
-        kl.pain_point_flag,
-        kl.observed_at
-      FROM keyword_latest kl
-      WHERE kl.score IS NOT NULL
-      ORDER BY kl.score DESC
+        k.id,
+        k.keyword,
+        lo.score,
+        lo.search_volume,
+        lo.difficulty,
+        lo.intent,
+        lo.word_count,
+        lo.pain_point_flag,
+        lo.created_at as observed_at
+      FROM keywords k
+      INNER JOIN latest_observations lo ON k.id = lo.keyword_id
+      WHERE lo.score IS NOT NULL
+      ORDER BY lo.score DESC
       LIMIT 10
-    `);
-
-    const topKeywordsRows = Array.isArray(topKeywordsQuery) 
-      ? topKeywordsQuery 
-      : (topKeywordsQuery.rows || []);
+    `;
 
     // 3. 获取近 30 天关键词发现趋势
-    const trendQuery: any = await db.execute(sql`
+    const trendResult = await sqlClient`
       SELECT 
         DATE(first_seen_at) as date,
         COUNT(*) as count
@@ -75,28 +78,38 @@ export async function GET(request: NextRequest) {
       WHERE first_seen_at >= NOW() - INTERVAL '30 days'
       GROUP BY DATE(first_seen_at)
       ORDER BY date ASC
-    `);
-
-    const trendRows = Array.isArray(trendQuery) ? trendQuery : (trendQuery.rows || []);
+    `;
 
     // 4. 获取意图分布
-    const intentQuery: any = await db.execute(sql`
+    const intentResult = await sqlClient`
+      WITH latest_observations AS (
+        SELECT DISTINCT ON (keyword_id)
+          keyword_id,
+          intent
+        FROM keyword_observations
+        ORDER BY keyword_id, created_at DESC
+      )
       SELECT 
         COALESCE(intent, 'unknown') as intent,
         COUNT(*) as count
-      FROM keyword_latest
+      FROM latest_observations
       GROUP BY COALESCE(intent, 'unknown')
       ORDER BY count DESC
-    `);
-
-    const intentRows = Array.isArray(intentQuery) ? intentQuery : (intentQuery.rows || []);
+    `;
 
     // 5. 获取难度分布
-    const difficultyQuery: any = await db.execute(sql`
+    const difficultyResult = await sqlClient`
+      WITH latest_observations AS (
+        SELECT DISTINCT ON (keyword_id)
+          keyword_id,
+          difficulty
+        FROM keyword_observations
+        ORDER BY keyword_id, created_at DESC
+      )
       SELECT 
         COALESCE(difficulty, 'unknown') as difficulty,
         COUNT(*) as count
-      FROM keyword_latest
+      FROM latest_observations
       GROUP BY COALESCE(difficulty, 'unknown')
       ORDER BY 
         CASE COALESCE(difficulty, 'unknown')
@@ -105,11 +118,7 @@ export async function GET(request: NextRequest) {
           WHEN 'high' THEN 3
           ELSE 4
         END
-    `);
-
-    const difficultyRows = Array.isArray(difficultyQuery) 
-      ? difficultyQuery 
-      : (difficultyQuery.rows || []);
+    `;
 
     // 返回数据
     return NextResponse.json({
@@ -121,7 +130,7 @@ export async function GET(request: NextRequest) {
           greenLightKeywords: parseInt(stats.green_light_keywords) || 0,
           runningTasks: parseInt(stats.running_tasks) || 0,
         },
-        topKeywords: topKeywordsRows.map((row: any) => ({
+        topKeywords: topKeywordsResult.map((row: any) => ({
           id: row.id,
           keyword: row.keyword,
           score: parseFloat(row.score) || 0,
@@ -132,15 +141,15 @@ export async function GET(request: NextRequest) {
           painPointFlag: row.pain_point_flag || false,
           observedAt: row.observed_at,
         })),
-        trends: trendRows.map((row: any) => ({
+        trends: trendResult.map((row: any) => ({
           date: row.date,
           count: parseInt(row.count) || 0,
         })),
-        intentDistribution: intentRows.map((row: any) => ({
+        intentDistribution: intentResult.map((row: any) => ({
           intent: row.intent,
           count: parseInt(row.count) || 0,
         })),
-        difficultyDistribution: difficultyRows.map((row: any) => ({
+        difficultyDistribution: difficultyResult.map((row: any) => ({
           difficulty: row.difficulty,
           count: parseInt(row.count) || 0,
         })),
