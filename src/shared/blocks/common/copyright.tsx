@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-import { envConfigs } from '@/config';
 import { Brand as BrandType } from '@/shared/types/blocks/common';
 
 export function Copyright({ brand }: { brand: BrandType }) {
@@ -12,15 +11,18 @@ export function Copyright({ brand }: { brand: BrandType }) {
     setCurrentYear(new Date().getFullYear());
   }, []);
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || 'App';
+
   return (
     <div className={`text-muted-foreground text-sm`}>
       © {currentYear || 2024}{' '}
       <a
-        href={brand?.url || envConfigs.app_url}
+        href={brand?.url || appUrl}
         target={brand?.target || ''}
         className="text-primary hover:text-primary/80 cursor-pointer"
       >
-        {brand?.title || envConfigs.app_name}
+        {brand?.title || appName}
       </a>
       , All rights reserved
     </div>

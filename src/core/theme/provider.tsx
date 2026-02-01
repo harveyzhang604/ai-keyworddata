@@ -4,10 +4,9 @@ import { ReactNode, useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 
-import { envConfigs } from '@/config';
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const locale = useLocale();
+  const defaultTheme = process.env.NEXT_PUBLIC_APPEARANCE ?? 'system';
 
   useEffect(() => {
     if (typeof document !== 'undefined' && locale) {
@@ -18,7 +17,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme={envConfigs.appearance}
+      defaultTheme={defaultTheme}
       enableSystem
       disableTransitionOnChange
     >

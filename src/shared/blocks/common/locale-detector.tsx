@@ -6,7 +6,6 @@ import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
 import { usePathname, useRouter } from '@/core/i18n/navigation';
-import { envConfigs } from '@/config';
 import { localeNames, locales } from '@/config/locale';
 import { Button } from '@/shared/components/ui/button';
 import { cacheGet, cacheSet } from '@/shared/lib/cache';
@@ -17,7 +16,10 @@ const DISMISSED_EXPIRY_DAYS = 1; // Expiry in days
 const PREFERRED_LOCALE_KEY = 'locale';
 
 export function LocaleDetector() {
-  if (envConfigs.locale_detect_enabled !== 'true') {
+  const localeDetectEnabled =
+    process.env.NEXT_PUBLIC_LOCALE_DETECT_ENABLED === 'true';
+
+  if (!localeDetectEnabled) {
     return null;
   }
 
