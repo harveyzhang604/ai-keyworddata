@@ -30,7 +30,7 @@ export function Stats({
         <ScrollAnimation delay={0.2}>
           <div className="grid gap-12 divide-y *:text-center md:grid-cols-3 md:gap-2 md:divide-x md:divide-y-0">
             {section.items?.map((item, idx) => (
-              <div className="space-y-4" key={idx}>
+              <div className="space-y-4" key={item.title || `stat-${idx}`}>
                 <h3 className="sr-only">
                   {item.title} {item.description}
                 </h3>

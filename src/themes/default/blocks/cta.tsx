@@ -40,7 +40,7 @@ export function Cta({
                   asChild
                   size={button.size || 'default'}
                   variant={button.variant || 'default'}
-                  key={idx}
+                  key={button.title || button.url || `cta-btn-${idx}`}
                 >
                   <Link
                     href={button.url || ''}

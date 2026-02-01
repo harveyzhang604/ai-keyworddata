@@ -64,7 +64,7 @@ export function FeaturesAccordion({
               className="w-full"
             >
               {section.items?.map((item, idx) => (
-                <AccordionItem value={`item-${idx + 1}`} key={idx}>
+                <AccordionItem value={`item-${idx + 1}`} key={item.title || `item-${idx}`}>
                   <AccordionTrigger>
                     <div className="flex items-center gap-2 text-base">
                       {item.icon && (

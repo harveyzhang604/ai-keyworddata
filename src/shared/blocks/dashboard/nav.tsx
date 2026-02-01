@@ -32,14 +32,26 @@ export function Nav({ nav, className }: { nav: NavType; className?: string }) {
     setMounted(true);
   }, []);
 
+  // 生成稳定的 key，避免 hydration 问题
+  const generateKey = (item: NavItem | undefined, index: number) => {
+    return item?.url || item?.title || `nav-item-${index}`;
+  };
+
+  // 判断是否激活，避免在服务端渲染时使用 pathname
+  const isActive = (url?: string, isActiveFlag?: boolean) => {
+    if (isActiveFlag) return true;
+    if (!mounted || !url) return false;
+    return pathname.startsWith(url);
+  };
+
   return (
     <SidebarGroup className={className}>
       <SidebarGroupContent className="mt-0 flex flex-col gap-2">
         {nav.title && <SidebarGroupLabel>{nav.title}</SidebarGroupLabel>}
         <SidebarMenu>
-          {nav.items.map((item: NavItem | undefined) => (
+          {nav.items.map((item: NavItem | undefined, index: number) => (
             <Collapsible
-              key={item?.title || item?.title || ''}
+              key={generateKey(item, index)}
               asChild
               defaultOpen={item?.is_expand || false}
               className="group/collapsible"
@@ -50,10 +62,7 @@ export function Nav({ nav, className }: { nav: NavType; className?: string }) {
                     <SidebarMenuButton
                       tooltip={item?.title}
                       className={`${
-                        item?.is_active ||
-                        (mounted &&
-                          item?.url &&
-                          pathname.startsWith(item?.url as string))
+                        isActive(item?.url as string, item?.is_active)
                           ? 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90 hover:text-sidebar-accent-foreground active:bg-sidebar-accent/90 active:text-sidebar-accent-foreground min-w-8 duration-200 ease-linear'
                           : ''
                       }`}
@@ -68,10 +77,7 @@ export function Nav({ nav, className }: { nav: NavType; className?: string }) {
                     asChild
                     tooltip={item?.title}
                     className={`${
-                      item?.is_active ||
-                      (mounted &&
-                        item?.url &&
-                        pathname.startsWith(item?.url as string))
+                      isActive(item?.url as string, item?.is_active)
                         ? 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90 hover:text-sidebar-accent-foreground active:bg-sidebar-accent/90 active:text-sidebar-accent-foreground min-w-8 duration-200 ease-linear'
                         : ''
                     }`}
@@ -88,9 +94,9 @@ export function Nav({ nav, className }: { nav: NavType; className?: string }) {
                 {item?.children && (
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {item.children?.map((subItem: NavItem) => (
+                      {item.children?.map((subItem: NavItem, subIndex: number) => (
                         <SidebarMenuSubItem
-                          key={subItem.title || subItem.title}
+                          key={subItem.url || subItem.title || `sub-${subIndex}`}
                         >
                           <SidebarMenuSubButton
                             asChild

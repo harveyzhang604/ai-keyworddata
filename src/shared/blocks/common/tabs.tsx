@@ -42,8 +42,8 @@ export function Tabs({
         <div className="flex items-center space-x-2">
           <TabsComponent value={tabName} onValueChange={setTabName}>
             <TabsList className={cn(size === 'sm' && 'h-8')}>
-              {tabs.map((tab, idx) => (
-                <TabsTrigger key={idx} value={tab.name || ''}>
+              {tabs.map((tab) => (
+                <TabsTrigger key={tab.name || tab.title} value={tab.name || ''}>
                   {tab.title}
                 </TabsTrigger>
               ))}

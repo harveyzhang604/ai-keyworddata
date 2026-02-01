@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import { useRef } from "react";
 
@@ -24,12 +24,17 @@ export function ScrollAnimation({
     once: true,
     margin: "-50px", // Optimization: trigger animation earlier for better perceived performance
   });
+  const [mounted, setMounted] = useState(false);
 
   // Respect user's reduced motion preference (accessibility)
   const shouldReduceMotion = useReducedMotion();
 
-  // If user prefers reduced motion or JavaScript is disabled, show content directly
-  if (shouldReduceMotion) {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // If not mounted yet (SSR), user prefers reduced motion, or JavaScript is disabled, show content directly
+  if (!mounted || shouldReduceMotion) {
     return (
       <div ref={ref} className={className}>
         {children}

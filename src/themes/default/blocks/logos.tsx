@@ -25,7 +25,7 @@ export function Logos({
           <div className="mx-auto mt-12 flex max-w-4xl flex-wrap items-center justify-center gap-x-12 gap-y-8 sm:gap-x-16 sm:gap-y-12">
             {section.items?.map((item, idx) => (
               <LazyImage
-                key={idx}
+                key={item.image?.src || `logo-${idx}`}
                 className="h-8 w-fit dark:invert"
                 src={item.image?.src ?? ''}
                 alt={item.image?.alt ?? ''}

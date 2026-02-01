@@ -346,9 +346,9 @@ export function Pricing({
           <div className="mx-auto mt-8 mb-16 flex w-full justify-center md:max-w-lg">
             <Tabs value={group} onValueChange={setGroup} className="">
               <TabsList>
-                {section.groups.map((item, i) => {
+                {section.groups.map((item) => {
                   return (
-                    <TabsTrigger key={i} value={item.name || ''}>
+                    <TabsTrigger key={item.name || item.title} value={item.name || ''}>
                       {item.title}
                       {item.label && (
                         <Badge className="ml-2">{item.label}</Badge>

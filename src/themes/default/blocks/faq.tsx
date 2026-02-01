@@ -38,7 +38,7 @@ export function Faq({
               className="bg-muted dark:bg-muted/50 w-full rounded-2xl p-1"
             >
               {section.items?.map((item, idx) => (
-                <div className="group" key={idx}>
+                <div className="group" key={item.question || item.title || `faq-${idx}`}>
                   <AccordionItem
                     value={item.question || item.title || ''}
                     className="data-[state=open]:bg-card dark:data-[state=open]:bg-muted peer rounded-xl border-none px-7 py-1 data-[state=open]:border-none data-[state=open]:shadow-sm"

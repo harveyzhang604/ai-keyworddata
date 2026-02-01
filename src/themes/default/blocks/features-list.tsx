@@ -52,7 +52,7 @@ export function FeaturesList({
                   {section.buttons?.map((button, idx) => (
                     <Button
                       asChild
-                      key={idx}
+                      key={button.title || button.url || `btn-${idx}`}
                       variant={button.variant || 'default'}
                       size={button.size || 'default'}
                     >
@@ -82,7 +82,7 @@ export function FeaturesList({
           {/* Prevent horizontal scrolling, min-w-0 and break-words */}
           <div className="relative grid min-w-0 grid-cols-1 gap-x-3 gap-y-6 border-t pt-12 break-words sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             {section.items?.map((item, idx) => (
-              <div className="min-w-0 space-y-3 break-words" key={idx}>
+              <div className="min-w-0 space-y-3 break-words" key={item.title || `feature-${idx}`}>
                 <div className="flex min-w-0 items-center gap-2">
                   {item.icon && (
                     <SmartIcon name={item.icon as string} size={16} />

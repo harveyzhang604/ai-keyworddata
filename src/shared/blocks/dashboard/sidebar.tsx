@@ -27,10 +27,12 @@ export function Sidebar({
       <SidebarContent>
         {sidebar.buttons && <SidebarButtons buttons={sidebar.buttons} />}
         {sidebar.main_navs &&
-          sidebar.main_navs.map((nav, idx) => <Nav key={idx} nav={nav} />)}
+          sidebar.main_navs.map((nav, idx) => (
+            <Nav key={nav.title || `main-nav-${idx}`} nav={nav} />
+          ))}
         {sidebar.library}
         {sidebar.bottom_nav && (
-          <Nav nav={sidebar.bottom_nav} className="mt-auto" />
+          <Nav key="bottom-nav" nav={sidebar.bottom_nav} className="mt-auto" />
         )}
       </SidebarContent>
       <SidebarFooterComponent>
