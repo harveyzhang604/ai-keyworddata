@@ -13,6 +13,7 @@
  * - wordCount: 词长（1-2/3-4/5+）
  * - dateRange: 时间范围（7d/30d/90d/all）
  * - source: 数据来源（可多选）
+ * - server: 服务器名称（可多选，逗号分隔）
  * - greenLight: 是否只显示绿灯词（true/false）
  * - sortBy: 排序字段（score/search_volume/observed_at）
  * - sortOrder: 排序方向（asc/desc）
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
     const wordCount = searchParams.get('wordCount') || '';
     const dateRange = searchParams.get('dateRange') || 'all';
     const source = searchParams.get('source')?.split(',').filter(s => s) || [];
+    const server = searchParams.get('server')?.split(',').filter(s => s) || [];
     const greenLight = searchParams.get('greenLight') === 'true';
     const sortBy = searchParams.get('sortBy') || 'score';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
@@ -145,20 +147,21 @@ export async function GET(request: NextRequest) {
     // 获取所有数据然后在代码中过滤
     const total = parseInt(countResult[0]?.total || '0');
 
-    // 查询数据
+    // 查询数据（包含服务器名称）
     const allDataResult = await sql`
       WITH latest_observations AS (
         SELECT DISTINCT ON (keyword_id)
-          keyword_id,
-          score,
-          search_volume,
-          difficulty,
-          intent,
-          word_count,
-          pain_point_flag,
-          source,
-          created_at
-        FROM keyword_observations
+          ko.keyword_id,
+          ko.score,
+          ko.search_volume,
+          ko.difficulty,
+          ko.intent,
+          ko.word_count,
+          ko.pain_point_flag,
+          ko.source,
+          ko.run_id,
+          ko.created_at
+        FROM keyword_observations ko
         ORDER BY keyword_id, created_at DESC
       )
       SELECT 
@@ -167,17 +170,20 @@ export async function GET(request: NextRequest) {
         k.language,
         k.country,
         k.category,
-        ko.score,
-        ko.search_volume,
-        ko.difficulty,
-        ko.intent,
-        ko.word_count,
-        ko.pain_point_flag,
-        ko.source,
-        ko.created_at as observed_at
+        lo.score,
+        lo.search_volume,
+        lo.difficulty,
+        lo.intent,
+        lo.word_count,
+        lo.pain_point_flag,
+        lo.source,
+        lo.created_at as observed_at,
+        ms.name as server_name
       FROM keywords k
-      LEFT JOIN latest_observations ko ON k.id = ko.keyword_id
-      ORDER BY ko.score DESC NULLS LAST, k.id DESC
+      LEFT JOIN latest_observations lo ON k.id = lo.keyword_id
+      LEFT JOIN mining_runs mr ON lo.run_id = mr.id
+      LEFT JOIN mining_servers ms ON mr.miner_id = ms.id
+      ORDER BY lo.score DESC NULLS LAST, k.id DESC
     `;
 
     // 在代码中进行过滤
@@ -208,6 +214,10 @@ export async function GET(request: NextRequest) {
       if (wordCount === '5+' && wc < 5) return false;
       // 数据来源过滤
       if (source.length > 0 && !source.includes(row.source)) {
+        return false;
+      }
+      // 服务器过滤
+      if (server.length > 0 && !server.includes(row.server_name)) {
         return false;
       }
       // 绿灯词过滤
@@ -250,6 +260,7 @@ export async function GET(request: NextRequest) {
       wordCount: parseInt(row.word_count) || 0,
       painPointFlag: row.pain_point_flag || false,
       source: row.source || 'unknown',
+      serverName: row.server_name || '未知',
       language: row.language || 'en',
       country: row.country || 'US',
       category: row.category || 'general',

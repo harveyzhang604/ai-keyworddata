@@ -8,7 +8,17 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
-import { FileTextIcon, CalendarIcon, ServerIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog';
+import { FileTextIcon, CalendarIcon, ServerIcon, CheckCircleIcon, XCircleIcon, Trash2 } from 'lucide-react';
 
 interface Report {
   id: number;
@@ -24,28 +34,63 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/keywords/reports');
+      
+      if (!response.ok) {
+        throw new Error('获取报告列表失败');
+      }
+
+      const data = await response.json();
+      setReports(data.reports || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '未知错误');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/keywords/reports');
-        
-        if (!response.ok) {
-          throw new Error('获取报告列表失败');
-        }
-
-        const data = await response.json();
-        setReports(data.reports || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '未知错误');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchReports();
   }, []);
+
+  const handleDeleteClick = (report: Report) => {
+    setReportToDelete(report);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!reportToDelete) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/keywords/reports/${reportToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // 从列表中移除已删除的报告
+        setReports(prev => prev.filter(r => r.id !== reportToDelete.id));
+        setDeleteDialogOpen(false);
+        setReportToDelete(null);
+      } else {
+        throw new Error(result.error || '删除失败');
+      }
+    } catch (err) {
+      console.error('删除报告失败:', err);
+      alert(err instanceof Error ? err.message : '删除失败');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -158,17 +203,49 @@ export default function ReportsPage() {
                       </div>
                     </div>
                   </div>
-                  <Link href={`/keywords/reports/${report.id}`}>
-                    <Button variant="outline" size="sm">
-                      查看详情
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                      onClick={() => handleDeleteClick(report)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  </Link>
+                    <Link href={`/keywords/reports/${report.id}`}>
+                      <Button variant="outline" size="sm">
+                        查看详情
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </CardHeader>
             </Card>
           ))
         )}
       </div>
+
+      {/* 删除确认对话框 */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除报告 "{reportToDelete?.title}" 吗？此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? '删除中...' : '删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

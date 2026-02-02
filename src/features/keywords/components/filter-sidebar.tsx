@@ -23,6 +23,7 @@ export interface FilterState {
   wordCount: string;
   dateRange: string;
   source: string[];
+  server: string[];
   greenLight: boolean;
 }
 
@@ -30,18 +31,20 @@ interface FilterSidebarProps {
   filters: FilterState;
   onFilterChange: (filters: FilterState) => void;
   onReset: () => void;
+  servers: { id: number; name: string }[];
 }
 
 export function FilterSidebar({
   filters,
   onFilterChange,
   onReset,
+  servers,
 }: FilterSidebarProps) {
   const updateFilter = (key: keyof FilterState, value: any) => {
     onFilterChange({ ...filters, [key]: value });
   };
 
-  const toggleArrayFilter = (key: 'difficulty' | 'intent' | 'source', value: string) => {
+  const toggleArrayFilter = (key: 'difficulty' | 'intent' | 'source' | 'server', value: string) => {
     const current = filters[key];
     const updated = current.includes(value)
       ? current.filter((v) => v !== value)
@@ -198,6 +201,30 @@ export function FilterSidebar({
           ))}
         </div>
       </div>
+
+      {/* 服务器筛选 */}
+      {servers.length > 0 && (
+        <div className="space-y-3">
+          <Label>服务器</Label>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {servers.map((srv) => (
+              <div key={srv.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`server-${srv.id}`}
+                  checked={filters.server.includes(srv.name)}
+                  onCheckedChange={() => toggleArrayFilter('server', srv.name)}
+                />
+                <label
+                  htmlFor={`server-${srv.id}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {srv.name}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 绿灯词开关 */}
       <div className="flex items-center justify-between rounded-lg border p-3">
