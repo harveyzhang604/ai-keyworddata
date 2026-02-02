@@ -34,6 +34,7 @@ interface Keyword {
   intent: string;
   wordCount: number;
   painPointFlag: boolean;
+  painPoint?: string;
   source: string;
   serverName: string;
   category: string;
@@ -185,6 +186,7 @@ export function KeywordsTable({
               <TableHead className="text-center">难度</TableHead>
               <TableHead className="text-center">意图</TableHead>
               <TableHead className="text-center">词数</TableHead>
+              <TableHead className="w-[150px] text-center">痛点</TableHead>
               <TableHead className="text-center">来源</TableHead>
               <TableHead className="text-center">服务器</TableHead>
               <TableHead className="text-center">标记</TableHead>
@@ -268,6 +270,15 @@ export function KeywordsTable({
                   <span className="text-sm text-muted-foreground">
                     {kw.wordCount}
                   </span>
+                </TableCell>
+                <TableCell className="text-center">
+                  {kw.painPoint ? (
+                     <div className="mx-auto max-w-[140px] truncate" title={kw.painPoint}>
+                       {kw.painPoint}
+                     </div>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-center">
                   <span className="text-sm capitalize text-muted-foreground">

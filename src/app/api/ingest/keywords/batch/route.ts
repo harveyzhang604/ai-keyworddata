@@ -59,6 +59,7 @@ interface KeywordInput {
   category?: string;
   word_count?: number;
   pain_point_flag?: boolean;
+  pain_point?: string;
   raw_data?: any;
 }
 
@@ -205,6 +206,7 @@ export async function POST(request: NextRequest) {
             intent,
             word_count,
             pain_point_flag,
+            pain_point,
             raw_json,
             created_at
           ) VALUES (
@@ -217,6 +219,7 @@ export async function POST(request: NextRequest) {
             ${kw.intent || null},
             ${kw.word_count || null},
             ${kw.pain_point_flag || false},
+            ${kw.pain_point || null},
             ${rawJson},
             NOW()
           )

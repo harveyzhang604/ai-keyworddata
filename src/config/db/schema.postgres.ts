@@ -653,6 +653,7 @@ export const keywordObservations = table(
     intent: varchar('intent', { length: 255 }),
     wordCount: integer('word_count'),
     painPointFlag: boolean('pain_point_flag').default(false),
+    painPoint: text('pain_point'),
     rawJson: text('raw_json'), // JSONB stored as text
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')

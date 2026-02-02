@@ -158,6 +158,7 @@ export async function GET(request: NextRequest) {
           ko.intent,
           ko.word_count,
           ko.pain_point_flag,
+          ko.pain_point,
           ko.source,
           ko.run_id,
           ko.created_at
@@ -176,6 +177,7 @@ export async function GET(request: NextRequest) {
         lo.intent,
         lo.word_count,
         lo.pain_point_flag,
+        lo.pain_point,
         lo.source,
         lo.created_at as observed_at,
         ms.name as server_name
@@ -259,6 +261,7 @@ export async function GET(request: NextRequest) {
       intent: row.intent || 'unknown',
       wordCount: parseInt(row.word_count) || 0,
       painPointFlag: row.pain_point_flag || false,
+      painPoint: row.pain_point,
       source: row.source || 'unknown',
       serverName: row.server_name || '未知',
       language: row.language || 'en',
