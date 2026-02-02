@@ -1,6 +1,9 @@
 /**
  * GET /api/keywords/reports/[id]
  * 获取报告详情
+ * 
+ * DELETE /api/keywords/reports/[id]
+ * 删除报告
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
@@ -16,12 +19,21 @@ function getDb() {
   return drizzle(client);
 }
 
+function getSqlClient() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL 环境变量未设置');
+  }
+  return neon(connectionString);
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = parseInt(params.id);
+    const { id } = await params;
+    const reportId = parseInt(id);
 
     if (isNaN(reportId)) {
       return NextResponse.json(
@@ -66,6 +78,55 @@ export async function GET(
     return NextResponse.json(
       {
         error: '获取报告详情失败',
+        details: error?.message || 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const reportId = parseInt(id);
+
+    if (isNaN(reportId)) {
+      return NextResponse.json(
+        { success: false, error: '无效的报告 ID' },
+        { status: 400 }
+      );
+    }
+
+    const sql = getSqlClient();
+
+    // 删除报告
+    const result = await sql`
+      DELETE FROM keyword_reports
+      WHERE id = ${reportId}
+      RETURNING id
+    `;
+
+    if (result.length === 0) {
+      return NextResponse.json(
+        { success: false, error: '报告不存在' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '报告已删除',
+      deletedId: reportId,
+    });
+  } catch (error: any) {
+    console.error('删除报告失败:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: '删除失败',
         details: error?.message || 'Unknown error',
       },
       { status: 500 }
