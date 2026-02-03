@@ -53,7 +53,7 @@ export function FilterSidebar({
   };
 
   return (
-    <div className="space-y-6 rounded-lg border bg-card p-6">
+    <div className="h-full space-y-6 rounded-lg border bg-card p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5" />
@@ -173,6 +173,10 @@ export function FilterSidebar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部时间</SelectItem>
+            <SelectItem value="1d">最近 1 天</SelectItem>
+            <SelectItem value="2d">最近 2 天</SelectItem>
+            <SelectItem value="3d">最近 3 天</SelectItem>
+            <SelectItem value="5d">最近 5 天</SelectItem>
             <SelectItem value="7d">最近 7 天</SelectItem>
             <SelectItem value="30d">最近 30 天</SelectItem>
             <SelectItem value="90d">最近 90 天</SelectItem>

@@ -81,7 +81,7 @@ Authorization: Bearer kwd_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #### cURL 示例
 
 ```bash
-curl -X POST https://ai-keyworddata.vercel.app/api/ingest/runs \
+curl -X POST https://mykeyworddata.vercel.app/api/ingest/runs \
   -H "Content-Type: application/json" \
   -H "X-API-Key: kwd_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
   -d '{
@@ -96,7 +96,7 @@ curl -X POST https://ai-keyworddata.vercel.app/api/ingest/runs \
 ```python
 import requests
 
-API_BASE = "https://ai-keyworddata.vercel.app"
+API_BASE = "https://mykeyworddata.vercel.app"
 API_KEY = "kwd_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 headers = {
@@ -214,7 +214,7 @@ else:
 import requests
 import time
 
-API_BASE = "https://ai-keyworddata.vercel.app"
+API_BASE = "https://mykeyworddata.vercel.app"
 API_KEY = "kwd_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 headers = {
@@ -335,7 +335,7 @@ for i in range(0, len(keywords), batch_size):
 import requests
 from datetime import datetime
 
-API_BASE = "https://ai-keyworddata.vercel.app"
+API_BASE = "https://mykeyworddata.vercel.app"
 API_KEY = "kwd_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 headers = {
@@ -466,7 +466,7 @@ import time
 
 # ========== 配置 ==========
 API_KEY = "kwd_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-BASE_URL = "https://ai-keyworddata.vercel.app/api/ingest"
+BASE_URL = "https://mykeyworddata.vercel.app/api/ingest"
 
 headers = {
     "Content-Type": "application/json",

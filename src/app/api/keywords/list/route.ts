@@ -226,6 +226,25 @@ export async function GET(request: NextRequest) {
       if (greenLight && !(parseFloat(row.score) >= 80 && row.difficulty === 'low')) {
         return false;
       }
+      // 时间范围过滤
+      if (dateRange !== 'all' && row.observed_at) {
+        const daysMap: { [key: string]: number } = {
+          '1d': 1,
+          '2d': 2,
+          '3d': 3,
+          '5d': 5,
+          '7d': 7,
+          '30d': 30,
+          '90d': 90,
+        };
+        const days = daysMap[dateRange] || 7;
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+        const observedDate = new Date(row.observed_at);
+        if (observedDate < cutoffDate) {
+          return false;
+        }
+      }
       return true;
     });
 

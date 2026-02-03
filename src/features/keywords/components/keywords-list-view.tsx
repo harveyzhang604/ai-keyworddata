@@ -245,9 +245,9 @@ export function KeywordsListView() {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         {/* 筛选侧边栏 */}
-        <aside>
+        <aside className="self-stretch">
           <FilterSidebar
             filters={filters}
             onFilterChange={handleFilterChange}

@@ -145,66 +145,67 @@ export function KeywordsTable({
 
   return (
     <>
-      <div className="rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={isAllSelected}
-                  ref={(el) => {
-                    if (el) {
-                      (el as any).indeterminate = isSomeSelected;
-                    }
-                  }}
-                  onCheckedChange={handleSelectAll}
-                />
-              </TableHead>
-              <TableHead className="w-[280px]">关键词</TableHead>
-              <TableHead className="text-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onSort('score')}
-                  className="h-8"
-                >
-                  得分
-                  <SortIcon field="score" />
-                </Button>
-              </TableHead>
-              <TableHead className="text-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onSort('search_volume')}
-                  className="h-8"
-                >
-                  搜索量
-                  <SortIcon field="search_volume" />
-                </Button>
-              </TableHead>
-              <TableHead className="text-center">难度</TableHead>
-              <TableHead className="text-center">意图</TableHead>
-              <TableHead className="text-center">词数</TableHead>
-              <TableHead className="w-[150px] text-center">痛点</TableHead>
-              <TableHead className="text-center">来源</TableHead>
-              <TableHead className="text-center">服务器</TableHead>
-              <TableHead className="text-center">标记</TableHead>
-              <TableHead className="text-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onSort('observed_at')}
-                  className="h-8"
-                >
-                  观察时间
-                  <SortIcon field="observed_at" />
-                </Button>
-              </TableHead>
-              <TableHead className="w-[60px] text-center">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="rounded-lg border bg-card relative flex flex-col max-h-[calc(100vh-200px)]">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full min-w-[1200px] caption-bottom text-sm">
+            <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) {
+                        (el as any).indeterminate = isSomeSelected;
+                      }
+                    }}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                <TableHead className="min-w-[200px]">关键词</TableHead>
+                <TableHead className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSort('score')}
+                    className="h-8"
+                  >
+                    得分
+                    <SortIcon field="score" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSort('search_volume')}
+                    className="h-8"
+                  >
+                    搜索量
+                    <SortIcon field="search_volume" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-center">难度</TableHead>
+                <TableHead className="text-center">意图</TableHead>
+                <TableHead className="text-center">词数</TableHead>
+                <TableHead className="w-[150px] text-center">痛点</TableHead>
+                <TableHead className="text-center">来源</TableHead>
+                <TableHead className="text-center">服务器</TableHead>
+                <TableHead className="text-center">标记</TableHead>
+                <TableHead className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSort('observed_at')}
+                    className="h-8"
+                  >
+                    观察时间
+                    <SortIcon field="observed_at" />
+                  </Button>
+                </TableHead>
+                <TableHead className="w-[60px] text-center">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
             {keywords.map((kw) => (
               <TableRow key={kw.id}>
                 <TableCell>
@@ -213,10 +214,10 @@ export function KeywordsTable({
                     onCheckedChange={(checked) => handleSelectOne(kw.id, checked as boolean)}
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="min-w-[200px] whitespace-normal">
                   <Link
                     href={`/keywords/${kw.id}`}
-                    className="font-medium text-primary hover:underline"
+                    className="font-medium text-primary hover:underline break-words"
                   >
                     {kw.keyword}
                   </Link>
@@ -330,8 +331,9 @@ export function KeywordsTable({
                 </TableCell>
               </TableRow>
             ))}
-          </TableBody>
-        </Table>
+            </TableBody>
+          </table>
+        </div>
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

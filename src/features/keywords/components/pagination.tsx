@@ -36,13 +36,13 @@ export function Pagination({
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <div className="flex items-center justify-between rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-card p-4">
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
           显示 {startItem}-{endItem} / 共 {totalItems} 条
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">每页显示</span>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">每页显示</span>
           <Select
             value={pageSize.toString()}
             onValueChange={(value) => onPageSizeChange(parseInt(value))}
@@ -59,7 +59,7 @@ export function Pagination({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <Button
           variant="outline"
           size="icon"
